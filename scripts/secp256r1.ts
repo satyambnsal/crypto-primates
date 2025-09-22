@@ -1,12 +1,13 @@
-const { ec: EC } = require('elliptic')
-const crypto = require('crypto')
-const fs = require('fs')
+import { ec as EC } from 'elliptic'
+import crypto from 'crypto'
+import fs from 'fs'
+
 
 const ec = new EC('p256')
-
 const keyPair = ec.genKeyPair();
 
 const message = "hello world";
+
 const messageHash = crypto.createHash('sha256').update(message).digest();
 
 const publicKey = keyPair.getPublic().encode('hex', false)

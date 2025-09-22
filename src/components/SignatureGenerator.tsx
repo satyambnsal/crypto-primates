@@ -3,6 +3,13 @@ import React, { useState } from 'react'
 import { ec as EC } from 'elliptic'
 import { Button } from '@burnt-labs/ui'
 import { useAbstraxionClient } from '@burnt-labs/abstraxion'
+import {
+  getHexByteLength,
+  getMessageByteLength,
+  hexToBase64,
+  sha256,
+  toFixedLengthBuffer,
+} from '@/utils'
 
 const ec = new EC('p256')
 
@@ -18,57 +25,6 @@ export const SignatureGenerator: React.FC = () => {
   const [verifyResult, setVerifyResult] = useState<string>('')
   const [error, setError] = useState<string>('')
   const { client: queryClient } = useAbstraxionClient()
-
-  // Function to generate SHA-256 hash in browser
-  const sha256 = async (message: string): Promise<Uint8Array> => {
-    try {
-      const msgBuffer = new TextEncoder().encode(message)
-      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
-      return new Uint8Array(hashBuffer)
-    } catch (err) {
-      throw new Error(`SHA-256 hashing failed: ${(err as Error).message}`)
-    }
-  }
-
-  // Function to convert array-like to fixed-length Buffer
-  const toFixedLengthBuffer = (value: any, length: number): Uint8Array => {
-    const arr = value.toArray('be', length)
-    return new Uint8Array(arr)
-  }
-
-  // Function to convert hex to Base64
-  const hexToBase64 = (hexString: string): string => {
-    try {
-      hexString = hexString.replace(/^0x/i, '').replace(/\s/g, '')
-      if (!/^[0-9a-fA-F]+$/.test(hexString)) {
-        throw new Error('Invalid hex string')
-      }
-      if (hexString.length % 2 !== 0) {
-        hexString = '0' + hexString
-      }
-      let binaryString = ''
-      for (let i = 0; i < hexString.length; i += 2) {
-        binaryString += String.fromCharCode(parseInt(hexString.substr(i, 2), 16))
-      }
-      return btoa(binaryString)
-    } catch (error) {
-      throw new Error(`Error converting hex to Base64: ${(error as Error).message}`)
-    }
-  }
-
-  // Function to calculate byte length of a hex string
-  const getHexByteLength = (hexString: string): number => {
-    hexString = hexString.replace(/^0x/i, '').replace(/\s/g, '')
-    if (!/^[0-9a-fA-F]+$/.test(hexString)) {
-      return 0
-    }
-    return hexString.length / 2
-  }
-
-  // Function to calculate byte length of an ASCII message
-  const getMessageByteLength = (message: string): number => {
-    return new TextEncoder().encode(message).length
-  }
 
   // Function to generate new key pair
   const generateNewKeyPair = () => {
@@ -87,7 +43,6 @@ export const SignatureGenerator: React.FC = () => {
     }
   }
 
-  // Function to sign message
   const signMessage = async () => {
     if (selectedKeyPairIndex === -1) {
       setError('No key pair selected')
@@ -120,7 +75,6 @@ export const SignatureGenerator: React.FC = () => {
     }
   }
 
-  // Function to verify signature with contract
   const verifyWithContract = async () => {
     if (!payload) {
       setError('No payload to verify')
@@ -128,15 +82,16 @@ export const SignatureGenerator: React.FC = () => {
     }
     try {
       setError('')
+      console.log('payload', payload)
       const payloadObj = JSON.parse(payload)
       const response = await queryClient!.queryContractSmart(contractAddress, payloadObj)
       setVerifyResult(JSON.stringify(response, null, 2))
     } catch (error) {
       setError(`Error verifying with contract: ${(error as Error).message}`)
+      setVerifyResult(JSON.stringify({ message: 'verification failed' }))
     }
   }
 
-  // Function to copy text to clipboard
   const copyToClipboard = (text: string, label: string) => {
     if (text) {
       navigator.clipboard
@@ -181,8 +136,6 @@ export const SignatureGenerator: React.FC = () => {
           ))}
         </select>
       </div>
-
-      {/* Public Key Display */}
       {publicKey && (
         <div className="w-full max-w-7xl border-2 border-primary rounded-md p-4">
           <h3 className="text-lg font-semibold text-black dark:text-white">Public Key:</h3>
@@ -205,8 +158,6 @@ export const SignatureGenerator: React.FC = () => {
           </Button>
         </div>
       )}
-
-      {/* Message Input */}
       <div className="w-full max-w-7xl">
         <label className="block text-sm font-medium text-black dark:text-white mb-2">
           Message:
@@ -231,16 +182,14 @@ export const SignatureGenerator: React.FC = () => {
           Sign Message
         </Button>
       </div>
-
-      {/* Payload Display */}
       {payload && (
         <>
           <hr className="w-full max-w-7xl border-t-2 border-primary my-4" />
           <div className="w-full max-w-7xl border-2 border-primary rounded-md p-4">
             <h3 className="text-lg font-semibold text-black dark:text-white">Payload:</h3>
             <textarea
-              readOnly
               value={payload}
+              onChange={(e) => setPayload(e.target.value)}
               className="w-full p-2 border-2 border-gray-300 rounded-md bg-white dark:bg-gray-800 text-black dark:text-white font-mono text-sm resize-none"
               rows={10}
             />
@@ -261,7 +210,6 @@ export const SignatureGenerator: React.FC = () => {
         </>
       )}
 
-      {/* Verify with Contract */}
       {payload && (
         <div className="w-full max-w-7xl">
           <Button fullWidth onClick={verifyWithContract} structure="base" className="mt-2">
@@ -269,8 +217,6 @@ export const SignatureGenerator: React.FC = () => {
           </Button>
         </div>
       )}
-
-      {/* Verification Result */}
       {verifyResult && (
         <div className="w-full max-w-7xl border-2 border-primary rounded-md p-4">
           <h3 className="text-lg font-semibold text-black dark:text-white">Verification Result:</h3>
