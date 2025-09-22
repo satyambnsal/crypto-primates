@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@burnt-labs/abstraxion": "^1.0.0-alpha.67",
+    "@types/elliptic": "^6.4.18",
     "elliptic": "^6.6.1",
     "lucide-react": "^0.544.0",
     "next": "14.0.0",

@@ -1,174 +1,99 @@
 'use client'
+import React, { useState, useEffect } from 'react'
 import {
   Abstraxion,
   useAbstraxionAccount,
   useModal,
   useAbstraxionSigningClient,
-  useAbstraxionClient,
 } from '@burnt-labs/abstraxion'
 import { Button } from '@burnt-labs/ui'
-import { useEffect, useState } from 'react'
-import type { ExecuteResult } from '@cosmjs/cosmwasm-stargate'
 import Link from 'next/link'
-import P256Signer from '@/components/P256Signer'
 import SignatureGenerator from '@/components/SignatureGenerator'
-
-const contractAddress = 'xion1qkkdph8l5326yqr37jgyvgawmwmwnt7mjecvg4z3437rzlvyquasa0pmvw'
-
-type ExecuteResultOrUndefined = ExecuteResult | undefined
 
 const blockExplorerBaseUrl = `https://www.mintscan.io/xion-testnet/tx/`
 
-function getTimestampInSeconds(date: Date | null): number {
-  if (!date) return 0
-  const d = new Date(date)
-  return Math.floor(d.getTime() / 1000)
-}
-
-const now = new Date()
-now.setSeconds(now.getSeconds() + 15)
-const oneYearFromNow = new Date()
-oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1)
-
 export default function Page() {
-  const { data: account, isConnected, isConnecting } = useAbstraxionAccount()
-  const { client, signArb, logout } = useAbstraxionSigningClient()
-  const { client: queryClient } = useAbstraxionClient()
-
-  const [count, setCount] = useState<string | null>(null)
+  const { data: account, isConnected } = useAbstraxionAccount()
+  const { logout } = useAbstraxionSigningClient()
   const [, setShowModal] = useModal()
-  const [loading, setLoading] = useState(false)
-  const [executeResult, setExecuteResult] = useState<ExecuteResultOrUndefined>(undefined)
+  const [showDropdown, setShowDropdown] = useState(false)
 
-  const getCount = async () => {
-    setLoading(true)
-    try {
-      const response = await queryClient!.queryContractSmart(contractAddress, {
-        get_count: {},
-      })
-
-      setCount(response.count)
-    } catch (error) {
-      console.error('Error querying contract:', error)
-    } finally {
-      setLoading(false)
-    }
+  // Truncate address for display (e.g., xion1...xyz)
+  const truncateAddress = (address: string) => {
+    return address.length > 10 ? `${address.slice(0, 6)}...${address.slice(-4)}` : address
   }
 
-  const increment = async () => {
-    setLoading(true)
-    const msg = { increment: {} }
-    try {
-      const res = await client?.execute(account.bech32Address, contractAddress, msg, 'auto')
-      setExecuteResult(res)
-      console.log('Transaction successful:', res)
-      await getCount()
-    } catch (error) {
-      console.log('Error executing transaction: ', error)
-    } finally {
-      setLoading(false)
+  // Copy address to clipboard
+  const copyAddress = () => {
+    if (account?.bech32Address) {
+      navigator.clipboard
+        .writeText(account.bech32Address)
+        .then(() => alert('Address copied to clipboard!'))
+        .catch((err) => console.error('Failed to copy address:', err))
     }
   }
-
-  // watch isConnected and isConnecting
-  // only added for testing
-  useEffect(() => {
-    console.log({ isConnected, isConnecting })
-  }, [isConnected, isConnecting])
 
   return (
-    <main className="m-auto flex min-h-screen max-w-xs flex-col items-center justify-center gap-4 p-4">
-      <h1 className="text-2xl font-bold tracking-tighter text-black dark:text-white">Abstraxion</h1>
-      <Button
-        fullWidth
-        onClick={() => {
-          setShowModal(true)
-        }}
-        structure="base"
-      >
-        {account.bech32Address ? (
-          <div className="flex items-center justify-center">VIEW ACCOUNT</div>
-        ) : (
-          'CONNECT'
-        )}
-      </Button>
-      {client ? (
-        <>
-          <Button
-            disabled={loading}
-            fullWidth
-            onClick={() => {
-              void getCount()
-            }}
-            structure="base"
-          >
-            {loading ? 'LOADING...' : 'Get Count'}
-          </Button>
-          <Button disabled={loading} fullWidth onClick={increment} structure="base">
-            {loading ? 'LOADING...' : 'INCREMENT'}
-          </Button>
-          {logout ? (
-            <Button
-              disabled={loading}
-              fullWidth
-              onClick={() => {
-                logout()
-              }}
-              structure="base"
-            >
-              LOGOUT
-            </Button>
-          ) : null}
-        </>
-      ) : null}
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
+      <header className="bg-white dark:bg-gray-800 border-b-2 border-primary p-4">
+        <div className="m-auto max-w-7xl flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tighter text-black dark:text-white">
+            Abstraxion
+          </h1>
+          <div className="flex items-center gap-4">
+            {isConnected && account?.bech32Address ? (
+              <div className="relative">
+                <div className="flex items-center gap-2">
+                  <span className="text-black dark:text-white font-mono">
+                    {truncateAddress(account.bech32Address)}
+                  </span>
+                  <Button onClick={copyAddress} structure="base" className="px-2 py-1 text-sm">
+                    Copy
+                  </Button>
+                  <Button
+                    onClick={() => setShowDropdown(!showDropdown)}
+                    structure="base"
+                    className="px-2 py-1 text-sm"
+                  >
+                    ▼
+                  </Button>
+                </div>
+                {showDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border-2 border-primary rounded-md shadow-lg z-10">
+                    <Button
+                      fullWidth
+                      onClick={() => {
+                        logout!()
+                        setShowDropdown(false)
+                      }}
+                      structure="base"
+                      className="text-black dark:text-white text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      Logout
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Button onClick={() => setShowModal(true)} structure="base" className="px-4 py-2">
+                Connect
+              </Button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+
+      <SignatureGenerator />
+
+      {/* Abstraxion Modal */}
       <Abstraxion
         onClose={() => {
           setShowModal(false)
         }}
       />
-      {account.bech32Address && (
-        <div className="border-2 border-primary rounded-md p-4 flex flex-row gap-4">
-          <div className="flex flex-row gap-6">
-            <div>address</div>
-            <div>{account.bech32Address}</div>
-          </div>
-        </div>
-      )}
-      {count ? (
-        <div className="border-2 border-primary rounded-md p-4 flex flex-row gap-4">
-          <div className="flex flex-row gap-6">
-            <div>Count:</div>
-            <div>{count}</div>
-          </div>
-        </div>
-      ) : null}
-      {executeResult && (
-        <div className="flex flex-col rounded border-2 border-black p-2 dark:border-white">
-          <div className="mt-2">
-            <p className="text-zinc-500">
-              <span className="font-bold">Transaction Hash</span>
-            </p>
-            <p className="text-sm">{executeResult.transactionHash}</p>
-          </div>
-          <div className="mt-2">
-            <p className=" text-zinc-500">
-              <span className="font-bold">Block Height:</span>
-            </p>
-            <p className="text-sm">{executeResult.height}</p>
-          </div>
-          <div className="mt-2">
-            <Link
-              className="text-black underline visited:text-purple-600 dark:text-white"
-              href={`${blockExplorerBaseUrl}${executeResult?.transactionHash}`}
-              target="_blank"
-            >
-              View in Block Explorer
-            </Link>
-          </div>
-        </div>
-      )}
-      {/* <P256Signer /> */}
-      <SignatureGenerator />
-    </main>
+    </div>
   )
 }
