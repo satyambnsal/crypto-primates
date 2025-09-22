@@ -10,6 +10,8 @@ import { Button } from '@burnt-labs/ui'
 import { useEffect, useState } from 'react'
 import type { ExecuteResult } from '@cosmjs/cosmwasm-stargate'
 import Link from 'next/link'
+import P256Signer from '@/components/P256Signer'
+import SignatureGenerator from '@/components/SignatureGenerator'
 
 const contractAddress = 'xion1qkkdph8l5326yqr37jgyvgawmwmwnt7mjecvg4z3437rzlvyquasa0pmvw'
 
@@ -165,6 +167,8 @@ export default function Page() {
           </div>
         </div>
       )}
+      {/* <P256Signer /> */}
+      <SignatureGenerator />
     </main>
   )
 }
